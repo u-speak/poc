@@ -1,12 +1,13 @@
-package main
+package tests
 
 import (
+	"github.com/u-speak/poc/chain"
 	"strconv"
 	"testing"
 )
 
 func BenchmarkValidationCheck(b *testing.B) {
-	c := New(func(h [32]byte) bool { return true })
+	c := chain.New(func(h [32]byte) bool { return true })
 	for i := 0; i < 10000; i++ {
 		_ = c.AddData(strconv.Itoa(i), 0)
 	}
@@ -17,7 +18,7 @@ func BenchmarkValidationCheck(b *testing.B) {
 }
 
 func BenchmarkPop(b *testing.B) {
-	c := New(func(h [32]byte) bool { return true })
+	c := chain.New(func(h [32]byte) bool { return true })
 	for i := 0; i < 10000; i++ {
 		_ = c.AddData(strconv.Itoa(i), 0)
 	}
