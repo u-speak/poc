@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/u-speak/poc/chain"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -24,7 +25,7 @@ func filterInput(r rune) (rune, bool) {
 
 func repl(c *chain.Chain) {
 	l, err := readline.NewEx(&readline.Config{
-		Prompt:          "\033[31m»\033[0m ",
+		Prompt:          Config.NodeNetwork.Interface + ":" + strconv.Itoa(Config.NodeNetwork.Port) + " \033[31m»\033[0m ",
 		HistoryFile:     "/tmp/readline.tmp",
 		AutoComplete:    completer,
 		InterruptPrompt: "^C",

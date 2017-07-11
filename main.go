@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"github.com/jinzhu/configor"
 	log "github.com/sirupsen/logrus"
 	"github.com/u-speak/poc/chain"
 	"github.com/u-speak/poc/util"
@@ -11,6 +12,10 @@ import (
 const version = "0.0.1"
 
 func main() {
+	err := configor.Load(&Config, "config.yml")
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Infof("Starting uspeak poc version %s", version)
 	log.SetLevel(log.DebugLevel)
 	c := chain.New(validateBeginningZero)
