@@ -82,3 +82,19 @@ func (c *Chain) IsValid() bool {
 func (c *Chain) LastHash() [32]byte {
 	return c.lastHash
 }
+
+// Length returns the length of the whole chain
+func (c *Chain) Length() uint64 {
+	return c.blocks.Length()
+}
+
+// AddRaw adds a preconstructed block
+func (c *Chain) AddRaw(b *Block, last ...byte) error {
+	if len(last) != 0 {
+		var f [32]byte
+		copy(f[:], last)
+		c.lastHash = f
+	}
+	c.blocks.Add(b)
+	return nil
+}

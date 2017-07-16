@@ -6,6 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/u-speak/poc/chain"
 	"github.com/u-speak/poc/util"
+	"google.golang.org/grpc"
+	"strconv"
 	"time"
 )
 
@@ -23,11 +25,22 @@ func main() {
 	mineAndAdd("Bootstrap Block 2", c)
 	mineAndAdd("foo", c)
 	mineAndAdd("bar", c)
-	repl(c)
+	ns := &NodeServer{chain: c, remoteConnections: make(map[string]*grpc.ClientConn)}
+	go ns.Run()
+	// Connect the node to itself
+	err = ns.Connect(Config.NodeNetwork.Interface + ":" + strconv.Itoa(Config.NodeNetwork.Port))
+	if err != nil {
+		log.Fatal(err)
+	}
+	repl(c, ns)
+	log.Info("Shutting down by interactive command")
+	ns.Shutdown()
 }
 
-func mineAndAdd(content string, c *chain.Chain) {
-	logIfError(c.AddData(content, mine(content, c.LastHash())))
+func mineAndAdd(content string, c *chain.Chain) uint {
+	nonce := mine(content, c.LastHash())
+	logIfError(c.AddData(content, nonce))
+	return nonce
 }
 
 func validateBeginningZero(h [32]byte) bool {

@@ -4,14 +4,11 @@ import (
 	"github.com/chzyer/readline"
 	log "github.com/sirupsen/logrus"
 	"github.com/u-speak/poc/chain"
+	d "github.com/u-speak/poc/distribution"
+	context "golang.org/x/net/context"
 	"io"
 	"strconv"
 	"strings"
-)
-
-var completer = readline.NewPrefixCompleter(
-	readline.PcItem("mine"),
-	readline.PcItem("append"),
 )
 
 func filterInput(r rune) (rune, bool) {
@@ -23,7 +20,30 @@ func filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
-func repl(c *chain.Chain) {
+func listNodes(ns *NodeServer) func(string) []string {
+	return func(_ string) []string {
+		ret := []string{}
+		for r := range ns.remoteConnections {
+			ret = append(ret, r)
+		}
+		return ret
+	}
+
+}
+
+func repl(c *chain.Chain, ns *NodeServer) {
+	var hosts = readline.PcItemDynamic(listNodes(ns))
+	var completer = readline.NewPrefixCompleter(
+		readline.PcItem("block", readline.PcItem("add")),
+		readline.PcItem("mine"),
+		readline.PcItem("chain", readline.PcItem("print")),
+		readline.PcItem("node",
+			readline.PcItem("add"),
+			readline.PcItem("status", hosts),
+			readline.PcItem("sync", hosts),
+			readline.PcItem("list"),
+		),
+	)
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          Config.NodeNetwork.Interface + ":" + strconv.Itoa(Config.NodeNetwork.Port) + " \033[31m»\033[0m ",
 		HistoryFile:     "/tmp/readline.tmp",
@@ -55,9 +75,45 @@ func repl(c *chain.Chain) {
 		case strings.HasPrefix(line, "mine "):
 			content := line[5:]
 			mine(content, c.LastHash())
-		case strings.HasPrefix(line, "add "):
-			content := line[4:]
-			mineAndAdd(content, c)
+		case strings.HasPrefix(line, "block add "):
+			content := line[10:]
+			n := mine(content, c.LastHash())
+			ns.Push(&chain.Block{Content: content, Nonce: n})
+		case strings.HasPrefix(line, "node add "):
+			content := line[9:]
+			err := ns.Connect(content)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+		case strings.HasPrefix(line, "node status "):
+			content := line[12:]
+			if _, contained := ns.remoteConnections[content]; !contained {
+				log.Errorf("You are not connected to node %s", content)
+				continue
+			}
+			client := d.NewDistributionServiceClient(ns.remoteConnections[content])
+			info, err := client.GetInfo(context.Background(), &d.StatusParams{Host: Config.NodeNetwork.Interface + ":" + strconv.Itoa(Config.NodeNetwork.Port)})
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			log.Debugf("%#v", info)
+		case strings.HasPrefix(line, "node sync "):
+			content := line[10:]
+			if _, contained := ns.remoteConnections[content]; !contained {
+				log.Errorf("You are not connected to node %s", content)
+				continue
+			}
+			ns.SynchronizeChain(content)
+		case strings.HasPrefix(line, "node list"):
+			for r := range ns.remoteConnections {
+				log.Debug(r)
+			}
+		case strings.HasPrefix(line, "chain print"):
+			if err := c.PrintChain(); err != nil {
+				log.Error(err)
+			}
 		case line == "print":
 			err := c.PrintChain()
 			if err != nil {
