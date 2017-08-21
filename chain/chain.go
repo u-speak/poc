@@ -2,8 +2,6 @@ package chain
 
 import (
 	"errors"
-	log "github.com/sirupsen/logrus"
-	"github.com/theSuess/uspeak-poc/util"
 )
 
 // ValidationFunc is the requirement for mining
@@ -33,26 +31,19 @@ func (c *Chain) AddData(content string, nonce uint) error {
 	return nil
 }
 
-// PrintChain logs the chain for debugging purposes
-func (c *Chain) PrintChain() error {
+// DumpChain dumps the whole ordered chain in an array
+func (c *Chain) DumpChain() ([]*Block, error) {
 	if !c.IsValid() {
-		return errors.New("Chain is not Valid! Cannot print")
+		return []*Block{}, errors.New("Chain is not Valid! Cannot dump")
 	}
 	h := c.lastHash
+	bl := []*Block{}
 	for h != [32]byte{} {
-		b := c.printBlock(h)
+		b := c.Get(h)
+		bl = append(bl, b)
 		h = b.PrevHash
 	}
-	return nil
-}
-
-func (c *Chain) printBlock(hash [32]byte) *Block {
-	b := c.blocks.Get(hash)
-	log.WithFields(log.Fields{
-		"hash":     util.CompactEmoji(b.Hash()),
-		"prevHash": util.CompactEmoji(b.PrevHash),
-	}).Debug(b.Content)
-	return b
+	return bl, nil
 }
 
 // Get retrieves a block

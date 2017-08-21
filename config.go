@@ -10,4 +10,7 @@ var Config = struct {
 		Port      int    `default:"4000"`
 		Interface string `default:"127.0.0.1"`
 	}
+	Logger struct {
+		PrintEmoji bool `default:"true"`
+	}
 }{}

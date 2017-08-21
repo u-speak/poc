@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	g "github.com/labstack/gommon/log"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -11,16 +10,6 @@ const emj = "😄😃😀😊☺️😉😍😘😚😗😙😜😝😛😳😁�
 type CustomLogger struct {
 	log.Logger
 }
-
-func (c *CustomLogger) Debugj(j g.JSON) {}
-func (c *CustomLogger) Errorj(j g.JSON) {}
-func (c *CustomLogger) Infoj(j g.JSON)  {}
-func (c *CustomLogger) Fatalj(j g.JSON) {}
-func (c *CustomLogger) Level() g.Lvl {
-	return g.Level()
-}
-
-//func (c *CustomLogger) Debugj(j g.JSON) {}
 
 func toString(hash [32]byte) string {
 	if hash == [32]byte{} {

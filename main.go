@@ -32,6 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	go startWeb(c, ns)
 	repl(c, ns)
 	log.Info("Shutting down by interactive command")
 	ns.Shutdown()

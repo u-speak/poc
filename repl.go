@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/base64"
 	"github.com/chzyer/readline"
 	log "github.com/sirupsen/logrus"
 	"github.com/u-speak/poc/chain"
 	d "github.com/u-speak/poc/distribution"
+	"github.com/u-speak/poc/util"
 	context "golang.org/x/net/context"
 	"io"
 	"strconv"
@@ -28,13 +30,22 @@ func listNodes(ns *NodeServer) func(string) []string {
 		}
 		return ret
 	}
+}
 
+func formatHash(hash [32]byte) string {
+	if Config.Logger.PrintEmoji {
+		return util.CompactEmoji(hash)
+	}
+	return base64.URLEncoding.EncodeToString(hash[:])
 }
 
 func repl(c *chain.Chain, ns *NodeServer) {
 	var hosts = readline.PcItemDynamic(listNodes(ns))
 	var completer = readline.NewPrefixCompleter(
-		readline.PcItem("block", readline.PcItem("add")),
+		readline.PcItem("block",
+			readline.PcItem("get"),
+			readline.PcItem("add"),
+		),
 		readline.PcItem("mine"),
 		readline.PcItem("chain", readline.PcItem("print")),
 		readline.PcItem("node",
@@ -58,6 +69,7 @@ func repl(c *chain.Chain, ns *NodeServer) {
 		panic(err)
 	}
 	defer l.Close()
+
 	for {
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
@@ -79,6 +91,22 @@ func repl(c *chain.Chain, ns *NodeServer) {
 			content := line[10:]
 			n := mine(content, c.LastHash())
 			ns.Push(&chain.Block{Content: content, Nonce: n})
+		case strings.HasPrefix(line, "block get "):
+			content := line[10:]
+			h, err := base64.URLEncoding.DecodeString(content)
+			if err != nil {
+				log.Error(err)
+				break
+			}
+			log.Debug(h)
+			var hash [32]byte
+			copy(hash[:], h)
+			block := c.Get(hash)
+			if block == nil {
+				log.Info("No block found")
+				break
+			}
+			log.Info(block.Content)
 		case strings.HasPrefix(line, "node add "):
 			content := line[9:]
 			err := ns.Connect(content)
@@ -105,20 +133,29 @@ func repl(c *chain.Chain, ns *NodeServer) {
 				log.Errorf("You are not connected to node %s", content)
 				continue
 			}
-			ns.SynchronizeChain(content)
+			err := ns.SynchronizeChain(content)
+			if err != nil {
+				log.Error(err)
+			}
 		case strings.HasPrefix(line, "node list"):
 			for r := range ns.remoteConnections {
 				log.Debug(r)
 			}
 		case strings.HasPrefix(line, "chain print"):
-			if err := c.PrintChain(); err != nil {
-				log.Error(err)
-			}
-		case line == "print":
-			err := c.PrintChain()
+			dump, err := c.DumpChain()
 			if err != nil {
 				log.Error(err)
+				break
 			}
+			for _, b := range dump {
+				log.WithFields(log.Fields{
+					"hash": formatHash(b.Hash()),
+					"prev": formatHash(b.PrevHash),
+				}).Debug(b.Content)
+			}
+		case line == "emj":
+			log.Info("Toggling Emoji mode...")
+			Config.Logger.PrintEmoji = !Config.Logger.PrintEmoji
 		case line == "exit":
 			return
 		case strings.HasPrefix(line, "get "):
